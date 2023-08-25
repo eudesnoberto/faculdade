@@ -11,6 +11,7 @@ y = r * np.cos(theta)
 fig = plt.figure(figsize=(10, 8))
 ax = fig.add_subplot(111, projection='3d')
 
+
 # Criação do gráfico 3D
 ax.plot(x, y, z, label='Curva 3D')
 ax.set_title('Gráfico 3D')
