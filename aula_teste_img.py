@@ -1,37 +1,52 @@
 import cv2
-import os
+import face_recognition
 
-# Função para coletar imagens de treinamento e atribuir rótulos
-def coletar_imagens_e_rotulos(diretorio):
-    imagens = []
-    rotulos = []
-    label = 0
-    
-    for subdiretorio in os.listdir(diretorio):
-        subdiretorio_path = os.path.join(diretorio, subdiretorio)
-        if os.path.isdir(subdiretorio_path):
-            for imagem_nome in os.listdir(subdiretorio_path):
-                imagem_path = os.path.join(subdiretorio_path, imagem_nome)
-                imagem = cv2.imread(imagem_path, cv2.IMREAD_GRAYSCALE)
-                imagens.append(imagem)
-                rotulos.append(label)
-            label += 1
-            
-    return imagens, rotulos
+# Carregar imagens de treinamento
+imagem_pessoa1 = face_recognition.load_image_file("caminho/para/pessoa1.jpg")
+imagem_pessoa2 = face_recognition.load_image_file("caminho/para/pessoa2.jpg")
 
-# Diretório contendo pastas de imagens de treinamento (uma pasta por pessoa)
-diretorio_de_treinamento = "caminho/para/seu/diretorio/de/treinamento"
+# Extrair codificações de rostos das imagens de treinamento
+codificacao_pessoa1 = face_recognition.face_encodings(imagem_pessoa1)[0]
+codificacao_pessoa2 = face_recognition.face_encodings(imagem_pessoa2)[0]
 
-# Coletar imagens e rótulos de treinamento
-imagens_treinamento, rotulos_treinamento = coletar_imagens_e_rotulos(diretorio_de_treinamento)
+# Criar listas de codificações e nomes conhecidos
+codificacoes_conhecidas = [codificacao_pessoa1, codificacao_pessoa2]
+nomes_conhecidos = ["Pessoa1", "Pessoa2"]
 
-# Criar um modelo LBPH
-modelo_lbph = cv2.face_LBPHFaceRecognizer.create()
+# Inicializar a webcam
+video_capture = cv2.VideoCapture(0)
 
-# Treinar o modelo com as imagens e rótulos de treinamento
-modelo_lbph.train(imagens_treinamento, np.array(rotulos_treinamento))
+while True:
+    # Capturar um frame
+    ret, frame = video_capture.read()
 
-# Salvar o modelo em um arquivo XML
-modelo_lbph.save("modelo_lbph.xml")
+    # Encontrar todas as faces no frame
+    face_locations = face_recognition.face_locations(frame)
+    codificacoes_rostos = face_recognition.face_encodings(frame, face_locations)
 
-print("Treinamento concluído e modelo salvo.")
+    for face_encoding, face_location in zip(codificacoes_rostos, face_locations):
+        # Comparar a codificação do rosto com as codificações conhecidas
+        matches = face_recognition.compare_faces(codificacoes_conhecidas, face_encoding)
+        name = "Desconhecido"
+
+        # Encontrar o índice do rosto correspondente e definir o nome
+        if True in matches:
+            first_match_index = matches.index(True)
+            name = nomes_conhecidos[first_match_index]
+
+        # Desenhar um retângulo e nome ao redor do rosto
+        top, right, bottom, left = face_location
+        cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+        font = cv2.FONT_HERSHEY_DUPLEX
+        cv2.putText(frame, name, (left + 6, bottom - 6), font, 0.5, (255, 255, 255), 1)
+
+    # Mostrar o frame resultante
+    cv2.imshow('Video', frame)
+
+    # Pressione 'q' para sair
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Liberar recursos
+video_capture.release()
+cv2.destroyAllWindows()
