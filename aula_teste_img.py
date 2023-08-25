@@ -1,46 +1,37 @@
 import cv2
+import os
 
-# Carregar o modelo de detecção de rosto
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+# Função para coletar imagens de treinamento e atribuir rótulos
+def coletar_imagens_e_rotulos(diretorio):
+    imagens = []
+    rotulos = []
+    label = 0
+    
+    for subdiretorio in os.listdir(diretorio):
+        subdiretorio_path = os.path.join(diretorio, subdiretorio)
+        if os.path.isdir(subdiretorio_path):
+            for imagem_nome in os.listdir(subdiretorio_path):
+                imagem_path = os.path.join(subdiretorio_path, imagem_nome)
+                imagem = cv2.imread(imagem_path, cv2.IMREAD_GRAYSCALE)
+                imagens.append(imagem)
+                rotulos.append(label)
+            label += 1
+            
+    return imagens, rotulos
 
-# Carregar o modelo de reconhecimento de rosto
-recognizer = cv2.face_LBPHFaceRecognizer.create()
-recognizer.read('modelo.yml')
+# Diretório contendo pastas de imagens de treinamento (uma pasta por pessoa)
+diretorio_de_treinamento = "caminho/para/seu/diretorio/de/treinamento"
 
-# Inicializar a webcam
-video_capture = cv2.VideoCapture(0)
+# Coletar imagens e rótulos de treinamento
+imagens_treinamento, rotulos_treinamento = coletar_imagens_e_rotulos(diretorio_de_treinamento)
 
-while True:
-    # Capturar um frame
-    ret, frame = video_capture.read()
+# Criar um modelo LBPH
+modelo_lbph = cv2.face_LBPHFaceRecognizer.create()
 
-    # Converter para escala de cinza
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+# Treinar o modelo com as imagens e rótulos de treinamento
+modelo_lbph.train(imagens_treinamento, np.array(rotulos_treinamento))
 
-    # Detectar rostos na imagem
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+# Salvar o modelo em um arquivo XML
+modelo_lbph.save("modelo_lbph.xml")
 
-    for (x, y, w, h) in faces:
-        # Reconhecer o rosto
-        face_roi = gray[y:y+h, x:x+w]
-        label, confidence = recognizer.predict(face_roi)
-        if confidence < 100:
-            name = "Pessoa"
-        else:
-            name = "Desconhecido"
-
-        # Desenhar retângulos ao redor dos rostos detectados
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-        font = cv2.FONT_HERSHEY_DUPLEX
-        cv2.putText(frame, name, (x + 6, y - 6), font, 0.5, (255, 255, 255), 1)
-
-    # Mostrar o frame resultante
-    cv2.imshow('Video', frame)
-
-    # Pressione 'q' para sair
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-# Liberar recursos
-video_capture.release()
-cv2.destroyAllWindows()
+print("Treinamento concluído e modelo salvo.")
